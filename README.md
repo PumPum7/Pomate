@@ -18,7 +18,7 @@ Pomate is a macOS Pomodoro timer application that helps you boost productivity b
 
 ## Installation
 
-1. Download the latest release from the [Releases](https://github.com/yourusername/Pomate/releases) page
+1. Download the latest release from the [Releases](https://github.com/pumpum7/Pomate/releases) page
 2. Move Pomate.app to your Applications folder
 3. Launch Pomate from your Applications folder or Spotlight
 
