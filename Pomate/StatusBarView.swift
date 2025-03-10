@@ -7,8 +7,10 @@ struct StatusBarView: View {
 		HStack(spacing: 4) {
 			Image(systemName: getIconName())
 
-			Text(pomodoroTimer.formatTime())
-				.font(.system(size: 12, weight: .medium, design: .monospaced))
+            if(pomodoroTimer.state != .idle) {
+                Text(pomodoroTimer.formatTime())
+                    .font(.system(size: 12, weight: .medium, design: .monospaced))
+            }
 		}
 	}
 
