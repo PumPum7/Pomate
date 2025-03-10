@@ -15,7 +15,7 @@ struct PomateApp: App {
 		_pomodoroTimer = StateObject(wrappedValue: PomodoroTimer(settings: settingsObject))
 
 		// Request notification permission
-		UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) {
+		UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) {
 			granted, error in
 			if granted {
 				print("Notification permission granted")
@@ -23,6 +23,9 @@ struct PomateApp: App {
 				print("Notification permission error: \(error.localizedDescription)")
 			}
 		}
+        
+        // Set up notification categories and actions if needed
+        configureNotifications()
 	}
 
 	var body: some Scene {
@@ -36,10 +39,12 @@ struct PomateApp: App {
 					themeEnvironment.currentTheme = settings.colorTheme
 					settings.applyTheme()
 				}
+                .animation(ThemeManager.animationCurve(for: settings.colorTheme), value: settings.colorTheme)
 		} label: {
 			// Status bar icon and/or text
 			StatusBarView(pomodoroTimer: pomodoroTimer)
 				.environmentObject(themeEnvironment)
+                .animation(ThemeManager.animationCurve(for: themeEnvironment.currentTheme), value: pomodoroTimer.state)
 		}
 		.menuBarExtraStyle(.window)
 	}
@@ -54,11 +59,47 @@ struct PomateApp: App {
 		case .dark:
 			return .dark
 		case .tomato, .ocean, .forest:
-			// For custom themes we could use either light or dark as base
-			// Here we'll return nil to use system preference
-			return nil
+			// For custom themes, use a base color scheme that works best with the theme
+			return theme == .tomato ? .light : .dark
 		}
 	}
+    
+    // Configure notification categories and actions
+    private func configureNotifications() {
+        let center = UNUserNotificationCenter.current()
+        
+        // Create a "Start Next Session" action
+        let startNextAction = UNNotificationAction(
+            identifier: "START_NEXT",
+            title: "Start Next Session",
+            options: .foreground
+        )
+        
+        // Create a "Take Longer Break" action
+        let extendBreakAction = UNNotificationAction(
+            identifier: "EXTEND_BREAK",
+            title: "Extend Break (+5 min)",
+            options: .foreground
+        )
+        
+        // Create categories for different notification types
+        let workDoneCategory = UNNotificationCategory(
+            identifier: "WORK_DONE",
+            actions: [startNextAction],
+            intentIdentifiers: [],
+            options: []
+        )
+        
+        let breakDoneCategory = UNNotificationCategory(
+            identifier: "BREAK_DONE",
+            actions: [startNextAction, extendBreakAction],
+            intentIdentifiers: [],
+            options: []
+        )
+        
+        // Register the notification categories
+        center.setNotificationCategories([workDoneCategory, breakDoneCategory])
+    }
 }
 
 // Theme environment class to propagate theme changes
@@ -77,4 +118,18 @@ class ThemeEnvironment: ObservableObject {
 			}
 		}
 	}
+    
+    // Add a method to get the appropriate color for the current timer state
+    func colorForState(_ state: PomodoroTimer.TimerState) -> Color {
+        switch state {
+        case .idle:
+            return .primary
+        case .workSession:
+            return ThemeManager.workSessionColor(for: currentTheme)
+        case .shortBreak:
+            return ThemeManager.shortBreakColor(for: currentTheme)
+        case .longBreak:
+            return ThemeManager.longBreakColor(for: currentTheme)
+        }
+    }
 }

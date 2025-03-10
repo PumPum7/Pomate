@@ -94,4 +94,30 @@ struct ThemeManager {
             return Color.accentColor
         }
     }
+    
+    static func transitionDuration(for theme: PomateSettings.ColorTheme) -> Double {
+        switch theme {
+        case .tomato:
+            return 0.3
+        case .ocean:
+            return 0.5
+        case .forest:
+            return 0.4
+        default:
+            return 0.3
+        }
+    }
+    
+    static func animationCurve(for theme: PomateSettings.ColorTheme) -> Animation {
+        switch theme {
+        case .tomato:
+            return .easeInOut(duration: transitionDuration(for: theme))
+        case .ocean:
+            return .spring(response: transitionDuration(for: theme))
+        case .forest:
+            return .easeOut(duration: transitionDuration(for: theme))
+        default:
+            return .easeInOut(duration: transitionDuration(for: theme))
+        }
+    }
 }
