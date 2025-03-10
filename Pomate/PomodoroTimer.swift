@@ -14,7 +14,7 @@ class PomodoroTimer: ObservableObject {
 	@Published var sessionsCompleted: Int = 0
 
 	private var timer: Timer?
-	private var settings: PomateSettings
+	var settings: PomateSettings
 
 	init(settings: PomateSettings) {
 		self.settings = settings
