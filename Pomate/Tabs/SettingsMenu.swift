@@ -2,6 +2,7 @@ import SwiftUI
 
 struct SettingsTabView: View {
     @ObservedObject var settings: PomateSettings
+    @EnvironmentObject var themeEnvironment: ThemeEnvironment
 
     init(settings: PomateSettings) {
         _settings = .init(wrappedValue: settings)
@@ -25,7 +26,9 @@ struct SettingsTabView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
                 Group {
-                    Text("Timer Durations").font(.headline)
+                    Text("Timer Durations")
+                        .font(.headline)
+                        .foregroundColor(ThemeManager.primaryColor(for: themeEnvironment.currentTheme))
 
                     // Work duration setting
                     VStack(alignment: .leading, spacing: 6) {
@@ -37,6 +40,7 @@ struct SettingsTabView: View {
                         }
                         .pickerStyle(MenuPickerStyle())
                         .labelsHidden()
+                        .accentColor(ThemeManager.workSessionColor(for: themeEnvironment.currentTheme))
                     }
 
                     // Short break duration setting
@@ -49,6 +53,7 @@ struct SettingsTabView: View {
                         }
                         .pickerStyle(MenuPickerStyle())
                         .labelsHidden()
+                        .accentColor(ThemeManager.shortBreakColor(for: themeEnvironment.currentTheme))
                     }
 
                     // Long break duration setting
@@ -61,13 +66,16 @@ struct SettingsTabView: View {
                         }
                         .pickerStyle(MenuPickerStyle())
                         .labelsHidden()
+                        .accentColor(ThemeManager.longBreakColor(for: themeEnvironment.currentTheme))
                     }
                 }
 
                 Divider().padding(.vertical, 5)
 
                 Group {
-                    Text("Sessions").font(.headline)
+                    Text("Sessions")
+                        .font(.headline)
+                        .foregroundColor(ThemeManager.primaryColor(for: themeEnvironment.currentTheme))
 
                     // Sessions before long break setting
                     VStack(alignment: .leading, spacing: 6) {
@@ -79,18 +87,71 @@ struct SettingsTabView: View {
                         }
                         .pickerStyle(MenuPickerStyle())
                         .labelsHidden()
+                        .accentColor(ThemeManager.primaryColor(for: themeEnvironment.currentTheme))
                     }
                 }
 
                 Divider().padding(.vertical, 5)
 
                 Group {
-                    Text("Notifications").font(.headline)
+                    Text("Notifications")
+                        .font(.headline)
+                        .foregroundColor(ThemeManager.primaryColor(for: themeEnvironment.currentTheme))
 
                     Toggle("Play Sound", isOn: $settings.playSound)
+                        .toggleStyle(SwitchToggleStyle(tint: ThemeManager.primaryColor(for: themeEnvironment.currentTheme)))
+                }
+                
+                Divider().padding(.vertical, 5)
+                
+                // Theme selection
+                Group {
+                    Text("Appearance")
+                        .font(.headline)
+                        .foregroundColor(ThemeManager.primaryColor(for: themeEnvironment.currentTheme))
+                    
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("Color Theme").foregroundColor(.secondary)
+                        
+                        Picker("", selection: $settings.colorTheme) {
+                            ForEach(PomateSettings.ColorTheme.allCases, id: \.self) { theme in
+                                HStack {
+                                    Text(theme.rawValue.capitalized)
+                                    Spacer()
+                                    ThemePreview(theme: theme)
+                                }
+                                .tag(theme)
+                            }
+                        }
+                        .pickerStyle(MenuPickerStyle())
+                        .labelsHidden()
+                        .accentColor(ThemeManager.primaryColor(for: themeEnvironment.currentTheme))
+                    }
                 }
             }
             .padding()
+            .background(ThemeManager.backgroundGradient(for: themeEnvironment.currentTheme))
+        }
+    }
+}
+
+// Theme preview component
+struct ThemePreview: View {
+    let theme: PomateSettings.ColorTheme
+    
+    var body: some View {
+        HStack(spacing: 8) {
+            Circle()
+                .fill(ThemeManager.workSessionColor(for: theme))
+                .frame(width: 12, height: 12)
+            
+            Circle()
+                .fill(ThemeManager.shortBreakColor(for: theme))
+                .frame(width: 12, height: 12)
+            
+            Circle()
+                .fill(ThemeManager.longBreakColor(for: theme))
+                .frame(width: 12, height: 12)
         }
     }
 }

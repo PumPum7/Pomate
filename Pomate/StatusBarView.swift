@@ -2,6 +2,7 @@ import SwiftUI
 
 struct StatusBarView: View {
     @ObservedObject var pomodoroTimer: PomodoroTimer
+    @EnvironmentObject var themeEnvironment: ThemeEnvironment
 
     var body: some View {
         HStack(spacing: 6) {

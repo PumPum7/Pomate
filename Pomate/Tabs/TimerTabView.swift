@@ -2,7 +2,9 @@ import SwiftUI
 
 struct TimerTabView: View {
     @ObservedObject var pomodoroTimer: PomodoroTimer
-
+    @State private var showTaskManager = false
+    @EnvironmentObject var themeEnvironment: ThemeEnvironment
+    
     var body: some View {
         ScrollView {
             VStack(spacing: 20) {
@@ -32,10 +34,73 @@ struct TimerTabView: View {
                 .frame(width: 200, height: 200)
                 .padding(.top, 10)
                 
+                // Current task display
+                VStack(spacing: 8) {
+                    HStack {
+                        Text("Current Task")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                        
+                        Spacer()
+                        
+                        Button(action: {
+                            showTaskManager = true
+                        }) {
+                            Image(systemName: "list.bullet")
+                                .font(.caption)
+                        }
+                        .buttonStyle(.plain)
+                        .popover(isPresented: $showTaskManager) {
+                            TaskManagerView(settings: pomodoroTimer.settings)
+                                .frame(width: 300, height: 400)
+                                .environmentObject(themeEnvironment)
+                        }
+                    }
+                    
+                    if let currentTask = pomodoroTimer.settings.currentTask {
+                        HStack {
+                            Text(currentTask.name)
+                                .font(.headline)
+                                .lineLimit(1)
+                            
+                            Spacer()
+                            
+                            if currentTask.associatedSessions > 0 {
+                                Text("\(currentTask.associatedSessions) sessions")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+                        .padding(8)
+                        .background(
+                            RoundedRectangle(cornerRadius: 8)
+                                .fill(ThemeManager.primaryColor(for: themeEnvironment.currentTheme).opacity(0.1))
+                        )
+                    } else {
+                        Button(action: {
+                            showTaskManager = true
+                        }) {
+                            HStack {
+                                Image(systemName: "plus")
+                                Text("Select a task")
+                                    .font(.subheadline)
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding(8)
+                            .background(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .stroke(Color.secondary.opacity(0.3), lineWidth: 1)
+                            )
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(.horizontal)
+                
                 // Session counter
                 HStack {
                     Image(systemName: "checkmark.circle.fill")
-                        .foregroundColor(.green)
+                        .foregroundColor(ThemeManager.primaryColor(for: themeEnvironment.currentTheme))
                     Text("Sessions completed: \(pomodoroTimer.sessionsCompleted)")
                         .font(.subheadline)
                 }
@@ -49,21 +114,24 @@ struct TimerTabView: View {
                             title: "Work",
                             icon: "briefcase.fill",
                             isActive: pomodoroTimer.state == .workSession,
-                            action: { pomodoroTimer.startWorkSession() }
+                            action: { pomodoroTimer.startWorkSession() },
+                            theme: themeEnvironment.currentTheme
                         )
                         
                         TimerButton(
                             title: "Short Break",
                             icon: "cup.and.saucer.fill",
                             isActive: pomodoroTimer.state == .shortBreak,
-                            action: { pomodoroTimer.startShortBreak() }
+                            action: { pomodoroTimer.startShortBreak() },
+                            theme: themeEnvironment.currentTheme
                         )
                         
                         TimerButton(
                             title: "Long Break",
                             icon: "figure.walk",
                             isActive: pomodoroTimer.state == .longBreak,
-                            action: { pomodoroTimer.startLongBreak() }
+                            action: { pomodoroTimer.startLongBreak() },
+                            theme: themeEnvironment.currentTheme
                         )
                     }
                     
@@ -84,6 +152,7 @@ struct TimerTabView: View {
                             .padding(.vertical, 10)
                         }
                         .buttonStyle(.borderedProminent)
+                        .tint(ThemeManager.buttonColor(for: themeEnvironment.currentTheme))
                         
                         Button(action: {
                             pomodoroTimer.reset()
@@ -100,6 +169,7 @@ struct TimerTabView: View {
                 Spacer()
             }
             .padding()
+            .background(ThemeManager.backgroundGradient(for: themeEnvironment.currentTheme))
         }
     }
     
@@ -124,15 +194,17 @@ struct TimerTabView: View {
     }
     
     private func timerColor() -> Color {
+        let theme = themeEnvironment.currentTheme
+        
         switch pomodoroTimer.state {
         case .workSession:
-            return .red
+            return ThemeManager.workSessionColor(for: theme)
         case .shortBreak:
-            return .blue
+            return ThemeManager.shortBreakColor(for: theme)
         case .longBreak:
-            return .green
+            return ThemeManager.longBreakColor(for: theme)
         case .idle:
-            return .gray
+            return Color.gray
         }
     }
     
@@ -156,6 +228,7 @@ struct TimerButton: View {
     let icon: String
     let isActive: Bool
     let action: () -> Void
+    let theme: PomateSettings.ColorTheme
     
     var body: some View {
         Button(action: action) {
@@ -169,7 +242,7 @@ struct TimerButton: View {
             .padding(.vertical, 8)
         }
         .buttonStyle(.bordered)
-        .background(isActive ? Color.accentColor.opacity(0.2) : Color.clear)
+        .background(isActive ? ThemeManager.primaryColor(for: theme).opacity(0.2) : Color.clear)
         .cornerRadius(8)
     }
 }

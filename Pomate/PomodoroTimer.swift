@@ -12,6 +12,9 @@ class PomodoroTimer: ObservableObject {
 	@Published var state: TimerState = .idle
 	@Published var timeRemaining: Int = 25 * 60  // 25 minutes in seconds
 	@Published var sessionsCompleted: Int = 0
+    
+    // Track initial duration for calculating actual time spent
+    private var initialDuration: Int = 25 * 60
 
 	private var timer: Timer?
 	var settings: PomateSettings
@@ -19,12 +22,14 @@ class PomodoroTimer: ObservableObject {
 	init(settings: PomateSettings) {
 		self.settings = settings
 		self.timeRemaining = settings.workDuration
+        self.initialDuration = settings.workDuration
 
 		// Listen for settings changes
 		settings.$workDuration
 			.sink { [weak self] newValue in
 				if self?.state == .idle {
 					self?.timeRemaining = newValue
+                    self?.initialDuration = newValue
 				}
 			}
 			.store(in: &cancellables)
@@ -35,18 +40,21 @@ class PomodoroTimer: ObservableObject {
 	func startWorkSession() {
 		state = .workSession
 		timeRemaining = settings.workDuration
+        initialDuration = settings.workDuration
 		startTimer()
 	}
 
 	func startShortBreak() {
 		state = .shortBreak
 		timeRemaining = settings.shortBreakDuration
+        initialDuration = settings.shortBreakDuration
 		startTimer()
 	}
 
 	func startLongBreak() {
 		state = .longBreak
 		timeRemaining = settings.longBreakDuration
+        initialDuration = settings.longBreakDuration
 		startTimer()
 	}
 
@@ -60,8 +68,25 @@ class PomodoroTimer: ObservableObject {
 		timer = nil
 		state = .idle
 		timeRemaining = settings.workDuration
+        initialDuration = settings.workDuration
 		sessionsCompleted = 0
 	}
+    
+    // Record a completed session
+    private func recordSession(type: String, completed: Bool) {
+        let record = PomateSettings.SessionRecord(
+            date: Date(),
+            duration: initialDuration - timeRemaining,
+            type: type,
+            completed: completed
+        )
+        settings.sessionHistory.append(record)
+        
+        // If this is a work session and there's a current task, increment its session count
+        if type == "work" && completed, let currentTaskId = settings.currentTaskId {
+            settings.incrementTaskSessions(taskId: currentTaskId)
+        }
+    }
 
 	private func startTimer() {
 		timer?.invalidate()
@@ -79,6 +104,9 @@ class PomodoroTimer: ObservableObject {
 				switch self.state {
 				case .workSession:
 					self.sessionsCompleted += 1
+                    
+                    // Record completed work session
+                    self.recordSession(type: "work", completed: true)
 
 					if self.settings.playSound {
 						currentTimer.sendRichNotification(
@@ -91,12 +119,25 @@ class PomodoroTimer: ObservableObject {
 						self.startShortBreak()
 					}
 
-				case .shortBreak, .longBreak:
+				case .shortBreak:
+                    // Record completed short break
+                    self.recordSession(type: "shortBreak", completed: true)
+                    
 					if self.settings.playSound {
 						currentTimer.sendRichNotification(
 							title: "Break completed!", body: "Time to get back to work.")
 					}
 					self.startWorkSession()
+                    
+                case .longBreak:
+                    // Record completed long break
+                    self.recordSession(type: "longBreak", completed: true)
+                    
+                    if self.settings.playSound {
+                        currentTimer.sendRichNotification(
+                            title: "Break completed!", body: "Time to get back to work.")
+                    }
+                    self.startWorkSession()
 
 				case .idle:
 					break
