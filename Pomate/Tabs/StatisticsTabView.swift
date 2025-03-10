@@ -1,251 +1,117 @@
 import SwiftUI
-import Charts
 
 struct StatisticsTabView: View {
     @ObservedObject var settings: PomateSettings
     @EnvironmentObject var themeEnvironment: ThemeEnvironment
-    
+    @State private var showingExportDialog = false
+
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 20) {
+            VStack(alignment: .leading, spacing: 16) {
+                // Header with title and export button
+                HStack {
+                    Text("Statistics")
+                        .font(.title2)
+                        .fontWeight(.bold)
+
+                    Spacer()
+
+                    Button(action: {
+                        showingExportDialog = true
+                    }) {
+                        HStack(spacing: 4) {
+                            Image(systemName: "square.and.arrow.up")
+                            Text("Export")
+                                .font(.subheadline)
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(
+                            Capsule()
+                                .fill(ThemeManager.primaryColor(for: themeEnvironment.currentTheme).opacity(0.15))
+                        )
+                        .foregroundColor(ThemeManager.primaryColor(for: themeEnvironment.currentTheme))
+                    }
+                    .buttonStyle(.plain)
+                    .fileExporter(
+                        isPresented: $showingExportDialog,
+                        document: CSVDocument(data: generateCSV(from: settings.sessionHistory)),
+                        contentType: .commaSeparatedText,
+                        defaultFilename: "pomate_statistics_\(formattedDate())"
+                    ) { result in
+                        switch result {
+                        case .success(let url):
+                            print("Saved to \(url)")
+                        case .failure(let error):
+                            print(error.localizedDescription)
+                        }
+                    }
+                }
+
                 // Today's summary
                 TodaySummaryView(sessions: todaySessions())
-                
+                    .padding(.top, 4)
+
                 Divider()
-                
+                    .padding(.vertical, 4)
+
                 // Weekly chart
                 WeeklyProgressView(sessions: settings.sessionHistory)
-                
+
                 Divider()
-                
+                    .padding(.vertical, 4)
+
                 // Total statistics
                 TotalStatsView(sessions: settings.sessionHistory)
-                
+
                 Spacer()
             }
             .padding()
             .background(ThemeManager.backgroundGradient(for: themeEnvironment.currentTheme))
         }
     }
-    
+
     // Helper to get today's sessions
     func todaySessions() -> [PomateSettings.SessionRecord] {
         let calendar = Calendar.current
-        return settings.sessionHistory.filter { 
+        return settings.sessionHistory.filter {
             calendar.isDateInToday($0.date)
         }
     }
-}
 
-// Today's summary component
-struct TodaySummaryView: View {
-    let sessions: [PomateSettings.SessionRecord]
-    @EnvironmentObject var themeEnvironment: ThemeEnvironment
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Today")
-                .font(.headline)
-            
-            HStack(spacing: 20) {
-                StatCard(
-                    title: "Work Sessions",
-                    value: "\(workSessions.count)",
-                    icon: "briefcase.fill",
-                    color: ThemeManager.workSessionColor(for: themeEnvironment.currentTheme)
-                )
-                
-                StatCard(
-                    title: "Focus Time",
-                    value: formatDuration(totalWorkDuration),
-                    icon: "timer",
-                    color: ThemeManager.primaryColor(for: themeEnvironment.currentTheme)
-                )
-            }
-        }
-    }
-    
-    // Helper computed properties
-    var workSessions: [PomateSettings.SessionRecord] {
-        sessions.filter { $0.type == "work" }
-    }
-    
-    var totalWorkDuration: Int {
-        workSessions.reduce(0) { $0 + $1.duration }
-    }
-    
-    // Format duration as HH:MM
-    func formatDuration(_ seconds: Int) -> String {
-        let hours = seconds / 3600
-        let minutes = (seconds % 3600) / 60
-        
-        if hours > 0 {
-            return "\(hours)h \(minutes)m"
-        } else {
-            return "\(minutes)m"
-        }
-    }
-}
+    // Generate CSV data from session history
+    private func generateCSV(from sessions: [PomateSettings.SessionRecord]) -> String {
+        // CSV header
+        var csv = "Date,Time,Type,Duration (seconds),Completed\n"
 
-// Weekly progress component
-struct WeeklyProgressView: View {
-    let sessions: [PomateSettings.SessionRecord]
-    @EnvironmentObject var themeEnvironment: ThemeEnvironment
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Weekly Progress")
-                .font(.headline)
-            
-            // Simple bar chart showing daily work time
-            VStack(alignment: .leading) {
-                ForEach(lastSevenDays(), id: \.self) { date in
-                    let duration = totalWorkDurationFor(date: date)
-                    
-                    HStack(alignment: .center, spacing: 10) {
-                        Text(formatDate(date))
-                            .font(.caption)
-                            .frame(width: 40, alignment: .leading)
-                        
-                        GeometryReader { geometry in
-                            RoundedRectangle(cornerRadius: 4)
-                                .fill(ThemeManager.workSessionColor(for: themeEnvironment.currentTheme).opacity(0.7))
-                                .frame(width: barWidth(duration: duration, maxWidth: geometry.size.width), height: 16)
-                        }
-                        .frame(height: 16)
-                        
-                        Text(formatDuration(duration))
-                            .font(.caption)
-                            .frame(width: 50, alignment: .trailing)
-                    }
-                    .frame(height: 20)
-                }
-            }
-            .padding(.top, 8)
+        // Sort sessions by date (newest first)
+        let sortedSessions = sessions.sorted { $0.date > $1.date }
+
+        // Date formatters
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateStyle = .short
+
+        let timeFormatter = DateFormatter()
+        timeFormatter.timeStyle = .short
+
+        // Add each session as a row
+        for session in sortedSessions {
+            let date = dateFormatter.string(from: session.date)
+            let time = timeFormatter.string(from: session.date)
+            let type = session.type
+            let duration = session.duration
+            let completed = session.completed ? "Yes" : "No"
+
+            csv += "\(date),\(time),\(type),\(duration),\(completed)\n"
         }
+
+        return csv
     }
-    
-    // Helper functions
-    func lastSevenDays() -> [Date] {
-        let calendar = Calendar.current
-        let today = calendar.startOfDay(for: Date())
-        
-        return (0..<7).map { dayOffset in
-            calendar.date(byAdding: .day, value: -dayOffset, to: today)!
-        }.reversed()
-    }
-    
-    func totalWorkDurationFor(date: Date) -> Int {
-        let calendar = Calendar.current
-        let sessionsOnDate = sessions.filter { 
-            calendar.isDate($0.date, inSameDayAs: date) && $0.type == "work"
-        }
-        
-        return sessionsOnDate.reduce(0) { $0 + $1.duration }
-    }
-    
-    func barWidth(duration: Int, maxWidth: CGFloat) -> CGFloat {
-        let maxDuration = 4 * 60 * 60 // 4 hours as max scale
-        let ratio = min(CGFloat(duration) / CGFloat(maxDuration), 1.0)
-        return max(ratio * maxWidth, duration > 0 ? 4 : 0) // At least 4pt if there's any time
-    }
-    
-    func formatDate(_ date: Date) -> String {
+
+    // Format current date for filename
+    private func formattedDate() -> String {
         let formatter = DateFormatter()
-        formatter.dateFormat = "EE"
-        return formatter.string(from: date)
-    }
-    
-    func formatDuration(_ seconds: Int) -> String {
-        let hours = seconds / 3600
-        let minutes = (seconds % 3600) / 60
-        
-        if hours > 0 {
-            return "\(hours)h \(minutes)m"
-        } else if minutes > 0 {
-            return "\(minutes)m"
-        } else {
-            return "0m"
-        }
-    }
-}
-
-// Total stats component
-struct TotalStatsView: View {
-    let sessions: [PomateSettings.SessionRecord]
-    @EnvironmentObject var themeEnvironment: ThemeEnvironment
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("All-Time Stats")
-                .font(.headline)
-            
-            HStack(spacing: 20) {
-                StatCard(
-                    title: "Total Sessions",
-                    value: "\(totalWorkSessions)",
-                    icon: "number.circle.fill",
-                    color: ThemeManager.longBreakColor(for: themeEnvironment.currentTheme)
-                )
-                
-                StatCard(
-                    title: "Total Focus Time",
-                    value: formatDuration(totalWorkDuration),
-                    icon: "clock.fill",
-                    color: ThemeManager.shortBreakColor(for: themeEnvironment.currentTheme)
-                )
-            }
-        }
-    }
-    
-    // Helper computed properties
-    var totalWorkSessions: Int {
-        sessions.filter { $0.type == "work" }.count
-    }
-    
-    var totalWorkDuration: Int {
-        sessions.filter { $0.type == "work" }.reduce(0) { $0 + $1.duration }
-    }
-    
-    // Format duration as HH:MM
-    func formatDuration(_ seconds: Int) -> String {
-        let hours = seconds / 3600
-        let minutes = (seconds % 3600) / 60
-        
-        if hours > 0 {
-            return "\(hours)h \(minutes)m"
-        } else {
-            return "\(minutes)m"
-        }
-    }
-}
-
-// Reusable stat card component
-struct StatCard: View {
-    let title: String
-    let value: String
-    let icon: String
-    let color: Color
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Image(systemName: icon)
-                    .foregroundColor(color)
-                Text(title)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            }
-            
-            Text(value)
-                .font(.title2)
-                .fontWeight(.bold)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding()
-        .background(
-            RoundedRectangle(cornerRadius: 10)
-                .fill(Color.secondary.opacity(0.1))
-        )
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter.string(from: Date())
     }
 }
