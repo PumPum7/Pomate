@@ -152,4 +152,14 @@ class PomodoroTimer: ObservableObject {
 		let seconds = timeRemaining % 60
 		return String(format: "%02d:%02d", minutes, seconds)
 	}
+    
+    deinit {
+        // Clean up timer resources
+        timer?.invalidate()
+        timer = nil
+        
+        // Clean up Combine subscriptions
+        cancellables.forEach { $0.cancel() }
+        cancellables.removeAll()
+    }
 }
