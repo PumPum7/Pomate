@@ -150,31 +150,57 @@ class PomateSettings: ObservableObject {
 
 	// Session history persistence
 	func saveSessionHistory() {
-		if let encoded = try? JSONEncoder().encode(sessionHistory) {
+		do {
+			let encoded = try JSONEncoder().encode(sessionHistory)
 			UserDefaults.standard.set(encoded, forKey: "sessionHistory")
+			print("[Persistence] Successfully saved session history with \(sessionHistory.count) records")
+		} catch {
+			print("[Persistence] Error saving session history: \(error.localizedDescription)")
 		}
 	}
 
 	func loadSessionHistory() {
-		if let data = UserDefaults.standard.data(forKey: "sessionHistory"),
-			let decoded = try? JSONDecoder().decode([SessionRecord].self, from: data)
-		{
+		do {
+			guard let data = UserDefaults.standard.data(forKey: "sessionHistory") else {
+				print("[Persistence] No session history found")
+				return
+			}
+			
+			let decoded = try JSONDecoder().decode([SessionRecord].self, from: data)
 			sessionHistory = decoded
+			print("[Persistence] Successfully loaded \(decoded.count) session records")
+		} catch {
+			print("[Persistence] Error loading session history: \(error.localizedDescription)")
+			// Reset to empty array if data is corrupted
+			sessionHistory = []
 		}
 	}
 
 	// Task persistence
 	func saveTasks() {
-		if let encoded = try? JSONEncoder().encode(tasks) {
+		do {
+			let encoded = try JSONEncoder().encode(tasks)
 			UserDefaults.standard.set(encoded, forKey: "tasks")
+			print("[Persistence] Successfully saved \(tasks.count) tasks")
+		} catch {
+			print("[Persistence] Error saving tasks: \(error.localizedDescription)")
 		}
 	}
 
 	func loadTasks() {
-		if let data = UserDefaults.standard.data(forKey: "tasks"),
-			let decoded = try? JSONDecoder().decode([Task].self, from: data)
-		{
+		do {
+			guard let data = UserDefaults.standard.data(forKey: "tasks") else {
+				print("[Persistence] No tasks found")
+				return
+			}
+			
+			let decoded = try JSONDecoder().decode([Task].self, from: data)
 			tasks = decoded
+			print("[Persistence] Successfully loaded \(decoded.count) tasks")
+		} catch {
+			print("[Persistence] Error loading tasks: \(error.localizedDescription)")
+			// Reset to empty array if data is corrupted
+			tasks = []
 		}
 	}
 
